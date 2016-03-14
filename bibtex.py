@@ -91,14 +91,13 @@ class BibTex(object):
         
         self._templates = {}
         paths = glob(os.path.join(path,'*.template'))
-        print(paths)
         for p in paths:
             term = p.split('/')[-1].split('.')[0]
             with open(p) as f:
                 self._templates[term] = {}
                 for line in f:
                     if line.strip():
-                        print(line,p)
+                        #print(line,p)
                         pre,post = line.strip().split('\t')
                         self._templates[term][pre] = post
         self._types = {}
@@ -141,8 +140,28 @@ class BibTex(object):
                     tentry[k] = v
 
             out = ctemp[etype].format(**tentry)
-            for a,b in [('?.','?'),('..','.'),('  ',' ')]:
-                out = out.replace(a,b)
+            if template != 'tex':
+                for a,b in [('?.','?'),
+                        ('..','.'),
+                        ('  ',' '), 
+                        ('{',''),
+                        ('}',''),
+                        (r'\"a', "ä"),
+                        (r'\"e', "ë"),
+                        (r'\"i', "ï"),
+                        (r'\"o', "ö"),
+                        (r'\"u', "ü"),
+                        (r'\"y', "ÿ"),
+                        (r'\vc', 'č'),
+                        (r'\vn', 'ň'),
+                        (r'\vs','š'),
+                        (r'\'c','ć'),
+                        ('``','“'),
+                        ('"','”'),
+                        ('`','‘'),
+                        ("'",'’'),
+                        ]:
+                    out = out.replace(a,b)
             return out
         
         return 'wrong type "'+etype+'" {'+key+'}'
@@ -217,7 +236,6 @@ class BibTex(object):
                     except ValueError:
                         print('[!] Error in field "author" ({0}) for key {1}.'.format(author, key))
                 elif ' ' in author:
-                    print(author,key)
                     tmp = author.strip().split(' ')
                     first = ' '.join(tmp[0:-1])
                     first = '-'.join([l[0]+'.' for l in first.split('-')])
@@ -233,17 +251,30 @@ class BibTex(object):
                         authors[0][1], #', '.join(authors[0][::-1], #authors[0][1] + ', ' + authors[0][0],
                         ', '.join([a for a,b in authors[1:-1]]),
                         authors[-1][0])# + ' '+authors[-1][1])
+                entry['author_str_jolr'] = '{0}, {1}, {2}'.format(
+                        authors[0][0],                         ', '.join([a for a,b in authors[1:-1]]),
+                        authors[-1][0])# + ' '+authors[-1][1])
+
             elif len(authors) == 2: 
                 entry['author_str'] = authors[0][1] #authors[0][1] + ', ' + authors[0][0]
                 entry['author_str'] += ' and '+ authors[1][0] #authors[1][0] + ' '+ authors[1][1]
+                entry['author_str_jolr'] = authors[0][0]+', '+authors[1][0]
+
             elif authors:
                 entry['author_str'] = authors[0][1] # + ', ' + authors[0][0]
+                entry['author_str_jolr'] = authors[0][0]
 
             if len(authors) > 2:
                 entry['author_short'] = authors[0][1] + ' et al.'
+                entry['author_cite'] = authors[0][1].split(',')[0] + ' et al.'
+            elif len(authors) == 2:
+                entry['author_cite'] = authors[0][1].split(',')[0] + ' and '+authors[1][1].split(',')[0]
+                entry['author_short'] = entry['author_str']
             else:
                 entry['author_short'] = entry['author_str']
-        
+                entry['author_cite'] = entry['author_str'].split(',')[0]
+            
+            entry['author_cite_amp'] = entry['author_cite'].replace(' and ', ' &amp; ')
             # editor
             if ' and ' in entry['editor']:
                 editors = entry['editor'].split(' and ')
@@ -282,14 +313,22 @@ class BibTex(object):
                         editors[0][1], #editors[0][1] + ', ' + editors[0][0],
                         ', '.join([a for a,b in editors[1:-1]]),
                         editors[-1][0]) # + ' '+editors[-1][1])
+                entry['editor_str_jolr'] = '{0}, {1}, &amp; {2}'.format(
+                        editors[0][0], #editors[0][1] + ', ' + editors[0][0],
+                        ', '.join([a for a,b in editors[1:-1]]),
+                        editors[-1][0]) # + ' '+editors[-1][1])
+
+
                 entry['editor_suffix'] = 'eds.'
             elif len(editors) == 2: 
                 entry['editor_str'] = editors[0][1]# + ', ' + editors[0][0]
                 entry['editor_str'] += ' and '+ editors[1][0]# + ' '+ editors[1][1]
+                entry['editor_str_jolr'] = editors[0][0] + ' &amp; '+editors[1][0]
                 entry['editor_suffix'] = 'eds.'
             elif editors:
                 entry['editor_str'] = editors[0][1]# + ', ' + editors[0][0]
                 entry['editor_suffix'] = 'ed.'
+                entry['editor_str_jolr'] = editors[0][0]
 
 
    
@@ -324,7 +363,7 @@ class BibTex(object):
     # cleaning function for bibtex entries
     def clean(entry):
         
-        print(entry['id'])
+        #print(entry['id'])
         for k in entry:
             entry[k] = ''.join([x for x in entry[k] if x not in '{}'])
     
